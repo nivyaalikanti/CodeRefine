@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Mail, Lock, User, ArrowRight, Github } from 'lucide-react';
+import { login, signup } from '../services/authService';
 
 interface AuthProps {
   mode: 'login' | 'signup';
@@ -13,20 +14,35 @@ const Auth: React.FC<AuthProps> = ({ mode, onSuccess, onSwitchMode }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setIsLoading(true);
     
-    // Simulating API call to Node/Express/MongoDB
-    setTimeout(() => {
-      onSuccess({
-        id: '1',
-        email,
-        name: mode === 'signup' ? name : email.split('@')[0],
-      });
+    try {
+      if (mode === 'signup') {
+        const response = await signup(email, password);
+        onSuccess({
+          id: response.user.id,
+          email: response.user.email,
+          name: name || email.split('@')[0],
+        });
+      } else {
+        const response = await login(email, password);
+        onSuccess({
+          id: response.user.id,
+          email: response.user.email,
+          name: email.split('@')[0],
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
+      setError(errorMessage);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -86,6 +102,12 @@ const Auth: React.FC<AuthProps> = ({ mode, onSuccess, onSwitchMode }) => {
               />
             </div>
           </div>
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+              <p className="text-red-400 text-sm font-medium">{error}</p>
+            </div>
+          )}
 
           <button
             type="submit"

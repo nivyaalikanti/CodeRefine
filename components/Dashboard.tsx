@@ -42,6 +42,7 @@ const Dashboard: React.FC = () => {
   const [result, setResult] = useState<CodeAnalysisResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
+  const [codeViewMode, setCodeViewMode] = useState<'diff' | 'optimized'>('diff');
 
   const toggleOption = (option: AnalysisOption) => {
     if (option === AnalysisOption.ALL) {
@@ -143,42 +144,123 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
-            {result && (
-              <button 
-                onClick={() => handleCopy(result.optimizedCode)}
-                className="text-slate-400 hover:text-indigo-400 flex items-center gap-1.5 text-xs font-medium"
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {result && (
+                <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg border border-slate-700">
+                  <button
+                    onClick={() => setCodeViewMode('diff')}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                      codeViewMode === 'diff'
+                        ? 'bg-indigo-600 text-white shadow-lg'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Show Differences
+                  </button>
+                  <button
+                    onClick={() => setCodeViewMode('optimized')}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                      codeViewMode === 'optimized'
+                        ? 'bg-indigo-600 text-white shadow-lg'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Show Optimized
+                  </button>
+                </div>
+              )}
+              {result && (
+                <button 
+                  onClick={() => handleCopy(result.optimizedCode)}
+                  className="text-slate-400 hover:text-indigo-400 flex items-center gap-1.5 text-xs font-medium"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex-1 overflow-auto bg-[#0d1117] p-6 code-font text-sm leading-relaxed">
+          <div className="flex-1 overflow-auto bg-[#0d1117] p-0 code-font text-sm">
             {isAnalyzing ? (
               <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-400">
                 <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
                 <p className="animate-pulse">Analyzing logic & security patterns...</p>
               </div>
             ) : result ? (
-              <pre className="text-slate-300 whitespace-pre-wrap break-words">
-                {generateDiff(inputCode, removeComments(result.optimizedCode, language)).map((line, idx) => (
-                  <div
-                    key={idx}
-                    className={`${
-                      line.type === 'added'
-                        ? 'bg-green-950/40 text-green-300'
-                        : line.type === 'removed'
-                        ? 'bg-red-950/40 text-red-300'
-                        : 'text-slate-300'
-                    }`}
-                  >
-                    <span className="inline-block w-8 text-right pr-2">
-                      {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
-                    </span>
-                    {line.content}
-                  </div>
-                ))}
-              </pre>
+              codeViewMode === 'diff' ? (
+                <div className="relative">
+                  {(() => {
+                    const diffLines = generateDiff(inputCode, removeComments(result.optimizedCode, language));
+                    const groupedDiff: Array<{ type: string; lines: any[] }> = [];
+                    let currentGroup: { type: string; lines: any[] } | null = null;
+
+                    // Group consecutive lines of the same type
+                    diffLines.forEach((line) => {
+                      if (!currentGroup || currentGroup.type !== line.type) {
+                        if (currentGroup) groupedDiff.push(currentGroup);
+                        currentGroup = { type: line.type, lines: [line] };
+                      } else {
+                        currentGroup.lines.push(line);
+                      }
+                    });
+                    if (currentGroup) groupedDiff.push(currentGroup);
+
+                    return groupedDiff.map((group, groupIdx) => {
+                      const isRemoved = group.type === 'removed';
+                      const isAdded = group.type === 'added';
+
+                      return (
+                        <div key={groupIdx}>
+                          {group.lines.map((line, lineIdx) => (
+                            <div
+                              key={`${groupIdx}-${lineIdx}`}
+                              className={`flex items-start transition-colors pl-3 ${
+                                isRemoved
+                                  ? 'bg-[#3d1f1f] hover:bg-[#4a2626] border-l-4 border-red-600'
+                                  : isAdded
+                                  ? 'bg-[#1f3a1f] hover:bg-[#264026] border-l-4 border-green-600'
+                                  : 'bg-[#0d1117] hover:bg-[#161b22] border-l-4 border-transparent'
+                              }`}
+                            >
+                              <span className={`inline-block text-right font-semibold text-xs w-12 py-2 pr-3 select-none ${
+                                isRemoved
+                                  ? 'text-red-700'
+                                  : isAdded
+                                  ? 'text-green-700'
+                                  : 'text-slate-700'
+                              }`}>
+                                {groupIdx + lineIdx + 1}
+                              </span>
+                              <span className={`font-bold py-2 pr-2 ${
+                                isRemoved
+                                  ? 'text-red-600'
+                                  : isAdded
+                                  ? 'text-green-600'
+                                  : 'text-slate-600'
+                              }`}>
+                                {isAdded ? '+' : isRemoved ? '−' : ' '}
+                              </span>
+                              <span className={`flex-1 font-mono py-2 leading-relaxed whitespace-pre ${
+                                isRemoved
+                                  ? 'text-red-200'
+                                  : isAdded
+                                  ? 'text-green-200'
+                                  : 'text-slate-300'
+                              }`}>
+                                {line.content}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                <pre className="p-6 text-slate-300 whitespace-pre-wrap break-words font-mono text-sm leading-relaxed">
+                  {result.optimizedCode}
+                </pre>
+              )
             ) : (
               <div className="h-full flex items-center justify-center text-slate-600 italic">
                 Refined code will appear here after analysis

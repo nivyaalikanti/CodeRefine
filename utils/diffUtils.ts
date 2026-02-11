@@ -33,27 +33,55 @@ export function generateDiff(originalCode: string, optimizedCode: string): DiffL
   const optimizedLines = optimizedCode.split('\n');
   
   const result: DiffLine[] = [];
+  let origIdx = 0;
+  let optIdx = 0;
   
-  // Simple diff algorithm - line by line comparison
-  const maxLength = Math.max(originalLines.length, optimizedLines.length);
-  
-  for (let i = 0; i < maxLength; i++) {
-    const original = originalLines[i];
-    const optimized = optimizedLines[i];
-    
-    if (original === undefined) {
-      // Line added in optimized version
-      result.push({ type: 'added', content: optimized });
-    } else if (optimized === undefined) {
-      // Line removed in optimized version
-      result.push({ type: 'removed', content: original });
-    } else if (original === optimized) {
-      // Line unchanged
-      result.push({ type: 'unchanged', content: optimized });
+  // Simple line-by-line comparison with grouping
+  while (origIdx < originalLines.length || optIdx < optimizedLines.length) {
+    if (origIdx < originalLines.length && optIdx < optimizedLines.length) {
+      // Both lines exist - check if they match
+      if (originalLines[origIdx] === optimizedLines[optIdx]) {
+        // Lines match - add as unchanged
+        result.push({ type: 'unchanged', content: originalLines[origIdx] });
+        origIdx++;
+        optIdx++;
+      } else {
+        // Lines don't match - collect all non-matching from original first
+        const removedLines = [];
+        while (origIdx < originalLines.length && 
+               originalLines[origIdx] !== optimizedLines[optIdx] &&
+               !optimizedLines.slice(optIdx).includes(originalLines[origIdx])) {
+          removedLines.push(originalLines[origIdx]);
+          origIdx++;
+        }
+        
+        // Then collect all non-matching from optimized
+        const addedLines = [];
+        while (optIdx < optimizedLines.length && 
+               optimizedLines[optIdx] !== originalLines[origIdx] &&
+               !originalLines.slice(origIdx).includes(optimizedLines[optIdx])) {
+          addedLines.push(optimizedLines[optIdx]);
+          optIdx++;
+        }
+        
+        // Add all removed lines first (grouped)
+        removedLines.forEach(line => {
+          result.push({ type: 'removed', content: line });
+        });
+        
+        // Then add all added lines (grouped)
+        addedLines.forEach(line => {
+          result.push({ type: 'added', content: line });
+        });
+      }
+    } else if (origIdx < originalLines.length) {
+      // Only original lines left - they're removed
+      result.push({ type: 'removed', content: originalLines[origIdx] });
+      origIdx++;
     } else {
-      // Line modified - show as removed then added
-      result.push({ type: 'removed', content: original });
-      result.push({ type: 'added', content: optimized });
+      // Only optimized lines left - they're added
+      result.push({ type: 'added', content: optimizedLines[optIdx] });
+      optIdx++;
     }
   }
   
