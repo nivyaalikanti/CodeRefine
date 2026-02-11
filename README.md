@@ -57,15 +57,17 @@ The AI model analyzes the code and returns structured feedback including detecte
 
 ### Home Page
 
-![Home Page](screenshots/home.png)
+![Home Page](screenshots/home.jpeg)
 
 ### Code Analysis Interface
 
-![Code Analysis](screenshots/analysis.png)
+![Code Analysis](screenshots/analysis.jpeg)
 
 ### Optimized Code Output
 
-![Optimized Output](screenshots/output.png)
+
+![Code Analysis](screenshots/analysis2.jpeg)
+![Code Analysis](screenshots/analysis3.jpeg)
 
 ---
 
